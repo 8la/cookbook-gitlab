@@ -356,4 +356,15 @@ service 'gitlab' do
   pattern "unicorn_rails master -D -c #{node['gitlab']['app_home']}/config/unicorn.rb"
   action [:enable, :start]
   subscribes :restart, "template[#{node['gitlab']['app_home']}/config/gitlab.yml]", :delayed
+  if node['platform_family'] == 'debian'
+    priority { 
+      0 => [:stop,21],
+      1 => [:stop,21],
+      2 => [:start,21],
+      3 => [:start,21],
+      4 => [:start,21],
+      5 => [:start,21],
+      6 => [:stop,21],
+    }
+  end
 end
