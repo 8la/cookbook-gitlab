@@ -364,7 +364,7 @@ service 'gitlab' do
       3 => [:start,21],
       4 => [:start,21],
       5 => [:start,21],
-      6 => [:stop,21],
+      6 => [:stop,21]
     }
   end
 end
