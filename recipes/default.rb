@@ -102,6 +102,13 @@ if node['gitlab']['install_ruby'] !~ /package/
     group node['gitlab']['user']
   end
 
+  # This hack put here to reliably find Ruby
+  # cross-platform. Issue #66
+  execute 'update-alternatives-ruby' do
+    command "update-alternatives --install /usr/local/bin/ruby ruby #{node['gitlab']['home']}/bin/ruby 10"
+    not_if { ::File.exists?('/usr/local/bin/ruby') }
+  end
+
   # Install required Ruby Gems for Gitlab with ~git/bin/gem
   %w[charlock_holmes bundler].each do |gempkg|
     gem_package gempkg do
@@ -134,6 +141,9 @@ end
 # Either listen_port has been configured elsewhere or we calculate it depending on the https flag
 listen_port = node['gitlab']['listen_port'] || (node['gitlab']['https'] ? 443 : 80)
 
+# Address of gitlab api for which gitlab-shell should connect
+api_fqdn = node['gitlab']['web_fqdn'] || node['fqdn']
+
 # render gitlab-shell config
 template node['gitlab']['shell']['home'] + '/config.yml' do
   owner node['gitlab']['user']
@@ -141,7 +151,7 @@ template node['gitlab']['shell']['home'] + '/config.yml' do
   mode '0644'
   source 'shell_config.yml.erb'
   variables(
-      fqdn: !node['gitlab']['web_fqdn'].nil? || node['fqdn'],
+      fqdn: api_fqdn,
       listen: listen_port
   )
 end
@@ -153,14 +163,6 @@ git node['gitlab']['app_home'] do
   action :checkout
   user node['gitlab']['user']
   group node['gitlab']['group']
-end
-
-# Drop off a profile script to be included in init script
-template "#{node['gitlab']['home']}/.profile" do
-  source 'profile_gitlab.sh.erb'
-  owner node['gitlab']['user']
-  group node['gitlab']['group']
-  mode '0755'
 end
 
 # Render gitlab init script
@@ -308,13 +310,13 @@ execute 'gitlab-bundle-rake' do
 end
 
 # Use certificate cookbook for keys
-if  node['gitlab']['https'] && !node['gitlab']['certificate_databag_id'].nil? 
-  certificate_manage node['gitlab']['certificate_databag_id'] do
-    cert_path '/etc/nginx/ssl'
-    owner node['gitlab']['user']
-    group node['gitlab']['user']
-    nginx_cert true
-  end
+certificate_manage node['gitlab']['certificate_databag_id'] do
+  cert_path '/etc/nginx/ssl'
+  owner node['gitlab']['user']
+  group node['gitlab']['user']
+  nginx_cert true
+  not_if { node['gitlab']['certificate_databag_id'].nil? }
+  only_if { node['gitlab']['https'] }
 end
 
 # Create nginx directories before dropping off templates
@@ -353,6 +355,7 @@ end
 
 # Enable and start unicorn and sidekiq service
 service 'gitlab' do
+  priority 30
   pattern "unicorn_rails master -D -c #{node['gitlab']['app_home']}/config/unicorn.rb"
   action [:enable, :start]
   subscribes :restart, "template[#{node['gitlab']['app_home']}/config/gitlab.yml]", :delayed

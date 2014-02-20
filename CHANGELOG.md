@@ -4,10 +4,11 @@ Gitlab Cookbook Changelog
 v6.4.3
 ------
 
-* Include new user privileges attributes.
-* Some README.md points on LDAP auth when anonymous binding is enabled on server.
-* Fix Path issue when executing bundle. It was using chef-client embedded ruby instead gitlab one.
-  - Just adding the path to the giltab bin directory at the beginning of the command.
+* Issue #66, gitlab service needs a priority > 20, on debian platform.
+* Issue #66, update-alternatives hack so gitlab-shell can find Ruby.
+* Issue #69, Correct gitlab_url in gitlab-shell config.yml, add regression tests.
+* Issue #67, soften cookbook dependencies on unknown platforms.
+* Issue #62, Add new user attributes to gitlab.yml, and update documentation.
 
 v6.4.2
 ------
